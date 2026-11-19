@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Game Hub</title>
+<style>
+:root{--bg:#f4f5fb;--card:#fff;--fg:#1b1d2a;--mut:#6b7080;--ac:#6366f1;--bd:#e3e5ef;--red:#dc2626;box-sizing:border-box}
+@media (prefers-color-scheme: dark){:root{--bg:#12141f;--card:#1c1f2e;--fg:#f2f2f7;--mut:#9aa0b4;--bd:#2c3044;--red:#f87171}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;background:var(--card);border-bottom:1px solid var(--bd);font-size:17px}
+#who{font-size:13px;color:var(--mut)}
+main{padding:calc(env(safe-area-inset-top,0px) + 62px) 12px calc(env(safe-area-inset-bottom,0px) + 80px);max-width:640px;margin:0 auto}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav button{flex:1;border:0;background:none;color:var(--mut);font:inherit;font-size:20px;padding:8px 0;display:flex;flex-direction:column;align-items:center}
+nav button small{font-size:11px}nav button.on{color:var(--ac);font-weight:700}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin:0 0 10px}
+.game{display:flex;gap:12px;align-items:center;text-decoration:none;color:inherit}
+.game .ic{font-size:34px}.game.off{opacity:.55}
+.meta{font-size:12px;color:var(--mut);margin-bottom:4px}
+.card p{margin:4px 0;white-space:pre-wrap;word-break:break-word}
+.card img{max-width:100%;border-radius:10px;margin-top:6px}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+button.b,button.sm{font:inherit;border:0;border-radius:10px;background:var(--ac);color:#fff;padding:9px 14px;font-weight:600}
+button.sm{font-size:12px;padding:6px 10px;background:var(--bd);color:var(--fg)}button.red{color:var(--red)}
+input,textarea{font:inherit;width:100%;padding:9px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--fg);margin:3px 0}
+textarea{min-height:70px;resize:vertical}
+.rep{border-left:3px solid var(--bd);padding:2px 8px;margin:6px 0}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#222;color:#fff;padding:9px 14px;border-radius:10px;display:none;z-index:9;font-size:14px;max-width:90%}
+h3{margin:4px 0 8px}.mut{color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+<header><b id="ttl">🎮 Game Hub</b><span id="who"></span></header>
+<main>
+<section id="sg" class="on"></section>
+<section id="sn"><div id="nc"></div><div id="nl"></div></section>
+<section id="sf"><div id="fc"></div><div id="fl"></div></section>
+<section id="sa"></section>
+</main>
+<nav>
+<button data-t="sg" class="on">🎮<small>Game</small></button>
+<button data-t="sn">📰<small>Cập nhật</small></button>
+<button data-t="sf">💬<small>Diễn đàn</small></button>
+<button data-t="sa">👤<small>Tài khoản</small></button>
+</nav>
+<div id="toast"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const ADMIN=false; // admin.html: true
+// Thêm game mới: thêm 1 dòng vào đây (u = tên file game)
+const GAMES=[
+ {n:'Đại Chiến Quái Vật 3D',i:'⚔️',d:'Đánh quái, lên cấp, chơi online',u:'quai3d.html'},
+ {n:'Game 2',i:'🎮',d:'Sắp ra mắt',u:''},
+ {n:'Game 3',i:'🎮',d:'Sắp ra mắt',u:''}
+];
+const CFG={apiKey:"AIzaSyBCsXWTTDlEPdvLZAme9l6hvEWkin_Vt-w",authDomain:"shadow-tap-abyss-clicker.firebaseapp.com",projectId:"shadow-tap-abyss-clicker",storageBucket:"shadow-tap-abyss-clicker.firebasestorage.app",messagingSenderId:"1012157878985",appId:"1:1012157878985:web:8b276ba670ce6d3704f318"};
+const DOM='@g3d.user',AEM='thebb00.admin@g3d.game';
+const $=id=>document.getElementById(id);
+const h=(t,a={},...k)=>{const e=document.createElement(t);for(const x in a){if(x==='on')for(const v in a.on)e.addEventListener(v,a.on[v]);else if(x==='c')e.className=a.c;else e[x]=a[x]}k.flat().forEach(c=>e.append(c));return e};
+const fmt=t=>new Date(t).toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',3500)}
+const err=e=>toast(e&&e.code==='permission-denied'?'Không có quyền (chưa đăng nhập, bị cấm hoặc thiếu rules)':'Lỗi: '+((e&&e.code)||'không rõ'));
+if(ADMIN)$('ttl').textContent='🛡️ Game Hub · Admin';
+
+firebase.initializeApp(CFG);
+const au=firebase.auth(),db=firebase.firestore();
+let U=null,isAdm=false,started=false,NEWS=[],POSTS=[],R={},unsub={},open=new Set(),D={},pend=null;
+const isReg=u=>!!(u&&!u.isAnonymous&&u.email);
+const myName=()=>!U?'':U.email===AEM?'Admin':(U.displayName||(U.email||'').split('@')[0]);
+
+// ---- Tabs ----
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button,section').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');$(b.dataset.t).classList.add('on')});
+function go(t){document.querySelector('nav [data-t='+t+']').click()}
+
+// ---- Game ----
+(function(){const s=$('sg');s.append(h('h3',{textContent:'Chọn game'}));
+ GAMES.forEach(g=>s.append(h(g.u?'a':'div',{c:'card game'+(g.u?'':' off'),href:g.u||undefined},
+  h('div',{c:'ic',textContent:g.i}),h('div',{},h('b',{textContent:g.n}),h('div',{c:'mut',textContent:g.d})))))})();
+
+// ---- Auth ----
+au.onAuthStateChanged(u=>{
+  if(!u){au.signInAnonymously().catch(err);return}
+  U=u;isAdm=ADMIN&&u.email===AEM;
+  $('who').textContent=isReg(u)?'👤 '+myName():'Khách';
+  renderAcc();rNews();rForum();rComposers();
+  if(!started){started=true;listen()}
+});
+function errText(e){const c=e&&e.code;return c==='auth/email-already-in-use'||c==='auth/credential-already-in-use'?'Tên này đã có người dùng':c==='auth/weak-password'?'Mật khẩu tối thiểu 6 ký tự':(c==='auth/invalid-credential'||c==='auth/wrong-password'||c==='auth/user-not-found')?'Sai tên hoặc mật khẩu':c==='auth/too-many-requests'?'Thử sai quá nhiều, đợi một lúc':'Lỗi: '+(c||'không rõ')}
+function renderAcc(){
+  const s=$('sa');s.textContent='';
+  if(isReg(U)){
+    s.append(h('div',{c:'card'},h('b',{textContent:'👤 '+myName()}),h('div',{c:'mut',textContent:isAdm?'Quyền: Admin':'Đã đăng nhập (dùng chung với game)'}),
+      h('div',{c:'row'},h('button',{c:'b',textContent:'Đăng xuất',on:{click:async()=>{await au.signOut()}}}))));
+    return}
+  const n=h('input',{placeholder:'Tên đăng nhập (3-24, chữ thường/số/_)',maxLength:24,autocapitalize:'none'}),
+        p=h('input',{type:'password',placeholder:'Mật khẩu (từ 6 ký tự)'}),m=h('div',{c:'mut'});
+  const chk=()=>{const v=n.value.trim().toLowerCase();if(!/^[a-z0-9_]{3,24}$/.test(v)){m.textContent='Tên 3-24 ký tự: chữ thường không dấu, số, _';return null}return v};
+  s.append(h('div',{c:'card'},h('h3',{textContent:'Đăng nhập / Đăng ký'}),n,p,m,
+   h('div',{c:'row'},
+    h('button',{c:'b',textContent:'Đăng nhập',on:{click:async()=>{const v=chk();if(!v)return;try{await au.signInWithEmailAndPassword(v+DOM,p.value)}catch(e){m.textContent=errText(e)}}}}),
+    h('button',{c:'b',textContent:'Đăng ký',on:{click:async()=>{const v=chk();if(!v)return;try{
+      const cr=firebase.auth.EmailAuthProvider.credential(v+DOM,p.value);
+      if(U&&U.isAnonymous)await U.linkWithCredential(cr);else await au.createUserWithEmailAndPassword(v+DOM,p.value);
+      await au.currentUser.updateProfile({displayName:v});
+      await db.doc('g3d_users/'+au.currentUser.uid).set({name:v,created:Date.now()});
+      U=au.currentUser;$('who').textContent='👤 '+v;renderAcc();rComposers();rForum();toast('Đăng ký thành công')}catch(e){m.textContent=errText(e)}}}}))));
+  if(ADMIN){const ap=h('input',{type:'password',placeholder:'Mật khẩu admin'});
+   s.append(h('div',{c:'card'},h('h3',{textContent:'🛡️ Admin'}),ap,h('button',{c:'b',textContent:'Vào admin',on:{click:async()=>{try{await au.signInWithEmailAndPassword(AEM,ap.value)}catch(e){toast('Sai mật khẩu admin')}}}})))}
+}
+
+// ---- Data ----
+function listen(){
+  db.collection('g3d_news').orderBy('t','desc').limit(30).onSnapshot(s=>{NEWS=s.docs.map(d=>({id:d.id,...d.data()}));rNews()},err);
+  db.collection('g3d_forum').orderBy('t','desc').limit(40).onSnapshot(s=>{POSTS=s.docs.map(d=>({id:d.id,...d.data()}));rForum()},err);
+}
+// ---- Cập nhật ----
+function rNews(){
+  const l=$('nl');l.textContent='';
+  if(!NEWS.length)l.append(h('div',{c:'mut',textContent:'Chưa có thông báo cập nhật nào.'}));
+  NEWS.forEach(x=>l.append(h('div',{c:'card'},h('b',{textContent:'📰 '+x.title}),h('div',{c:'meta',textContent:fmt(x.t)}),h('p',{textContent:x.text}),
+    isAdm?h('div',{c:'row'},h('button',{c:'sm red',textContent:'🗑 Xóa',on:{click:()=>db.doc('g3d_news/'+x.id).delete().catch(err)}})):'')));
+}
+function rComposers(){
+  const nc=$('nc'),fc=$('fc');nc.textContent='';fc.textContent='';
+  if(isAdm){const t=h('input',{placeholder:'Tiêu đề (vd: v1.2 - thêm boss)',maxLength:80}),x=h('textarea',{placeholder:'Nội dung cập nhật…',maxLength:1500});
+   nc.append(h('div',{c:'card'},h('b',{textContent:'🛡️ Đăng cập nhật'}),t,x,h('button',{c:'b',textContent:'Đăng',on:{click:async()=>{
+    if(!t.value.trim()||!x.value.trim())return toast('Nhập tiêu đề và nội dung');
+    try{await db.collection('g3d_news').add({title:t.value.trim(),text:x.value.trim(),t:Date.now()});t.value=x.value='';toast('Đã đăng')}catch(e){err(e)}}}})))}
+  if(!isReg(U)){fc.append(h('div',{c:'card'},h('div',{textContent:'Đăng nhập để đăng bài và trả lời.'}),h('button',{c:'b',textContent:'Đăng nhập',on:{click:()=>go('sa')}})));return}
+  const x=h('textarea',{placeholder:'Viết bài mới…',maxLength:1000}),f=h('input',{type:'file',accept:'image/*',style:'display:none',on:{change:async()=>{
+    if(!f.files[0])return;try{pend=await shrink(f.files[0]);pv.textContent='📷 Đã chọn ảnh';}catch(e){toast('Không đọc được ảnh')}}}}),pv=h('span',{c:'mut'});
+  fc.append(h('div',{c:'card'},x,h('div',{c:'row'},h('button',{c:'sm',textContent:'📷 Ảnh',on:{click:()=>f.click()}}),pv,
+   h('button',{c:'b',textContent:'Đăng bài',on:{click:async()=>{
+    const tx=x.value.trim();if(!tx&&!pend)return toast('Nhập nội dung hoặc chọn ảnh');
+    const d={uid:U.uid,name:myName(),text:tx,t:Date.now(),adm:isAdm};if(pend)d.image=pend;
+    try{await db.collection('g3d_forum').add(d);x.value='';pend=null;pv.textContent='';toast('Đã đăng')}catch(e){err(e)}}}})),f));
+}
+function shrink(file){return new Promise((ok,no)=>{const im=new Image();im.onload=()=>{
+  const c=document.createElement('canvas');let s=Math.min(1,900/Math.max(im.width,im.height));
+  for(let i=0;i<8;i++,s*=.8){c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+   const o=c.toDataURL('image/jpeg',.72);if(o.length<240000)return ok(o)}no()};im.onerror=no;im.src=URL.createObjectURL(file)})}
+
+// ---- Diễn đàn ----
+function toggle(id){
+  if(open.has(id)){open.delete(id);unsub[id]&&unsub[id]();delete unsub[id]}
+  else{open.add(id);unsub[id]=db.collection('g3d_replies').where('post','==',id).onSnapshot(s=>{R[id]=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.t-b.t);rForum()},err)}
+  rForum()}
+async function delPost(p){
+  if(!confirm('Xóa bài này?'))return;
+  try{if(isAdm){const s=await db.collection('g3d_replies').where('post','==',p.id).get(),b=db.batch();s.forEach(d=>b.delete(d.ref));b.delete(db.doc('g3d_forum/'+p.id));await b.commit()}
+      else await db.doc('g3d_forum/'+p.id).delete()}catch(e){err(e)}}
+function thread(p){
+  const w=h('div',{});(R[p.id]||[]).forEach(r=>w.append(h('div',{c:'rep'},h('div',{c:'meta',textContent:(r.adm?'🛡️ ':'')+r.name+' · '+fmt(r.t)}),h('p',{textContent:r.text}),
+    (isAdm||(U&&r.uid===U.uid))?h('button',{c:'sm red',textContent:'🗑',on:{click:()=>db.doc('g3d_replies/'+r.id).delete().catch(err)}}):'')));
+  if(isReg(U)){const i=h('input',{placeholder:'Trả lời…',maxLength:500,value:D[p.id]||'',on:{input:()=>D[p.id]=i.value}});
+   w.append(i,h('button',{c:'sm',textContent:'Gửi',on:{click:async()=>{const tx=i.value.trim();if(!tx)return;
+    try{await db.collection('g3d_replies').add({post:p.id,uid:U.uid,name:myName(),text:tx,t:Date.now(),adm:isAdm});D[p.id]=''}catch(e){err(e)}}}}))}
+  return w}
+function rForum(){
+  const l=$('fl');l.textContent='';
+  if(!POSTS.length)l.append(h('div',{c:'mut',textContent:'Chưa có bài viết nào. Hãy là người đầu tiên!'}));
+  POSTS.forEach(p=>{
+    const c=h('div',{c:'card'},h('div',{c:'meta',textContent:(p.adm?'🛡️ ':'')+p.name+' · '+fmt(p.t)}),
+      p.text?h('p',{textContent:p.text}):'',
+      (p.image&&String(p.image).startsWith('data:image/'))?h('img',{src:p.image}):'',
+      h('div',{c:'row'},h('button',{c:'sm',textContent:'💬 Trả lời'+(R[p.id]?' ('+R[p.id].length+')':''),on:{click:()=>toggle(p.id)}}),
+       (isAdm||(U&&p.uid===U.uid))?h('button',{c:'sm red',textContent:'🗑 Xóa',on:{click:()=>delPost(p)}}):''));
+    if(open.has(p.id))c.append(thread(p));
+    l.append(c)})}
+</script>
+</body>
+</html>
