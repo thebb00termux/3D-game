@@ -39,6 +39,9 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 #adm .pl{display:flex;flex-wrap:wrap;align-items:center;gap:2px;border-top:1px solid rgba(255,255,255,.15);padding:4px 0}
 #alog{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px}
 #alog input{font:inherit;font-size:16px;padding:10px;border-radius:10px;border:0;width:220px;text-align:center}
+#au_msg{color:#f87171;font-size:14px;min-height:18px;max-width:250px;text-align:center}
+#auth{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:5}
+#auth input{font:inherit;font-size:16px;padding:10px;border-radius:10px;border:0;width:220px;text-align:center}
 #ann{position:fixed;left:10px;right:10px;top:30%;text-align:center;background:rgba(250,204,21,.95);color:#222;font-weight:800;font-size:18px;padding:12px;border-radius:12px;display:none}
 button{font:inherit;font-size:18px;font-weight:700;padding:12px 28px;border:0;border-radius:12px;background:var(--xp);color:#222}
 </style>
@@ -60,13 +63,16 @@ button{font:inherit;font-size:18px;font-weight:700;padding:12px 28px;border:0;bo
 <li><b>Quái:</b> càng lên cấp càng nhiều, nhanh, đau. Quái tinh anh (to) trâu và rơi nhiều XP.</li>
 <li><b>Chí mạng 💥:</b> 15% cơ hội gấp đôi sát thương.</li>
 <li><b>Thua:</b> hết máu thì chơi lại từ Lv 1. Cố đạt cấp cao nhất!</li>
-<li><b>Online:</b> thấy người chơi khác trong cùng link, và có bảng xếp hạng chung (điểm lưu khi bạn gục ngã hoặc lên cấp).</li></ul><input id="nick" maxlength="14" placeholder="Nhập tên của bạn"><button id="start">Bắt đầu</button></div>
+<li><b>Online:</b> thấy người chơi khác trong cùng link, và có bảng xếp hạng chung (điểm lưu khi bạn gục ngã hoặc lên cấp).</li></ul><div style="display:flex;gap:8px;align-items:center"><span id="accname">👤 Khách</span><button class="ab" id="acc">Đăng nhập / Đăng ký</button><button class="ab" id="acclo" style="display:none">Đăng xuất</button></div><input id="nick" maxlength="14" placeholder="Nhập tên của bạn"><button id="start">Bắt đầu</button></div>
 <div id="adm"><b>🛡️ Admin</b><div>
 <button class="ab" id="a_heal">Hồi máu</button><button class="ab" id="a_lv">+1 cấp</button><button class="ab" id="a_god">Bất tử: tắt</button><button class="ab" id="a_clr">Xóa quái</button></div>
 <input id="a_txt" maxlength="120" placeholder="Thông báo cho mọi người"><button class="ab" id="a_send">Gửi thông báo</button>
 <div style="margin-top:6px"><b>Người chơi online</b></div><div id="a_list">—</div>
 <div style="margin-top:6px"><button class="ab" id="a_rst">Xóa BXH</button><button class="ab" id="a_out">Đăng xuất admin</button></div></div>
 <div id="alog"><h2 style="margin:0">🛡️ Đăng nhập Admin</h2><input id="apw" type="password" placeholder="Mật khẩu admin"><button id="alogin">Đăng nhập</button><button id="acancel" style="background:#555;color:#fff">Hủy</button></div>
+<div id="auth"><h2 style="margin:0">👤 Tài khoản</h2>
+<input id="au_name" maxlength="14" placeholder="Tên đăng nhập" autocapitalize="none" autocomplete="username"><input id="au_pw" type="password" placeholder="Mật khẩu (từ 6 ký tự)" autocomplete="current-password">
+<div id="au_msg"></div><button id="au_in">Đăng nhập</button><button id="au_up" style="background:#4ade80">Đăng ký</button><button id="au_x" style="background:#555;color:#fff">Đóng</button></div>
 <div id="ann"></div>
 <div id="over"><h1>Bạn đã gục ngã 💀</h1><div id="score"></div><button id="again">Chơi lại</button></div>
 
@@ -328,11 +334,43 @@ function admRender(){
 function refresh(){admRender();const arr=[],now=Date.now();
   for(const k in docs){const v=docs[k];if(k===uid||now-(v.t||0)>15000)continue;arr.push({peer:k,isMe:false,kind:'viewer',presence:v})}
   syncPeers(arr)}
+const DOM='@g3d.user';
+const isReg=u=>!!(u&&!u.isAnonymous&&u.email&&u.email.endsWith(DOM));
+function setAccount(u){
+  if(isReg(u)){nick=u.displayName||u.email.split('@')[0];nickEl.value=nick;nickEl.disabled=true;$('accname').textContent='👤 '+nick;$('acc').style.display='none';$('acclo').style.display='inline-block'}
+  else{nickEl.disabled=false;$('accname').textContent='👤 Khách';$('acc').style.display='inline-block';$('acclo').style.display='none'}
+}
+function getUser(){const a=firebase.auth();return new Promise(r=>{const un=a.onAuthStateChanged(x=>{un();r(x)})}).then(x=>x||a.signInAnonymously().then(c=>c.user))}
+const msg=t=>$('au_msg').textContent=t;
+function errText(e){const c=e&&e.code;return c==='auth/email-already-in-use'||c==='auth/credential-already-in-use'?'Tên này đã có người dùng':c==='auth/weak-password'?'Mật khẩu tối thiểu 6 ký tự':(c==='auth/invalid-credential'||c==='auth/wrong-password'||c==='auth/user-not-found')?'Sai tên hoặc mật khẩu':c==='auth/too-many-requests'?'Thử sai quá nhiều, đợi một lúc':c==='auth/operation-not-allowed'?'Chưa bật đăng nhập Email/Mật khẩu':'Lỗi: '+(c||'không rõ')}
+function authInput(){const n=$('au_name').value.trim().toLowerCase(),p=$('au_pw').value;
+  if(!/^[a-z0-9_]{3,14}$/.test(n)){msg('Tên 3-14 ký tự: chữ thường không dấu, số, _');return null}
+  if(!fdb){msg('Chưa kết nối Firebase');return null}
+  if(isAdmin){msg('Hãy đăng xuất admin trước');return null}
+  return{n,p}}
+$('acc').onclick=()=>{msg('');$('auth').style.display='flex'};
+$('au_x').onclick=()=>$('auth').style.display='none';
+$('au_up').onclick=async()=>{const a=authInput();if(!a)return;
+  try{const au=firebase.auth(),u=au.currentUser,cred=firebase.auth.EmailAuthProvider.credential(a.n+DOM,a.p);
+    if(u&&u.isAnonymous)await u.linkWithCredential(cred);else await au.createUserWithEmailAndPassword(a.n+DOM,a.p);
+    await au.currentUser.updateProfile({displayName:a.n});
+    uid=au.currentUser.uid;
+    await fdb.doc('g3d_users/'+uid).set({name:a.n,created:Date.now()});
+    setAccount(au.currentUser);lastKey='';afterAuth();$('auth').style.display='none';$('au_pw').value=''}
+  catch(e){msg(errText(e))}};
+$('au_in').onclick=async()=>{const a=authInput();if(!a)return;
+  try{const au=firebase.auth();try{await fdb.doc('g3d_players/'+uid).delete()}catch(e){}
+    await au.signInWithEmailAndPassword(a.n+DOM,a.p);
+    uid=au.currentUser.uid;setAccount(au.currentUser);lastKey='';afterAuth();$('auth').style.display='none';$('au_pw').value=''}
+  catch(e){msg(errText(e))}};
+$('acclo').onclick=async()=>{try{await fdb.doc('g3d_players/'+uid).delete()}catch(e){}
+  const au=firebase.auth();await au.signOut();const c=await au.signInAnonymously();
+  uid=c.user.uid;nick='';nickEl.value='';lastKey='';setAccount(c.user);afterAuth()};
 function initFirebase(){
   try{
     firebase.initializeApp(FIREBASE_CONFIG);
-    firebase.auth().signInAnonymously().then(c=>{
-      uid=c.user.uid;fdb=firebase.firestore();afterAuth();
+    getUser().then(user=>{
+      uid=user.uid;fdb=firebase.firestore();setAccount(user);afterAuth();
       setInterval(sendPres,1000);setInterval(refresh,2000);
       addEventListener('pagehide',()=>{fdb.doc('g3d_players/'+uid).delete().catch(()=>{})});
       fdb.collection('g3d_players').onSnapshot(sn=>{docs={};sn.forEach(d=>{docs[d.id]=d.data()});refresh()},onErr);
