@@ -63,7 +63,7 @@ button{font:inherit;font-size:18px;font-weight:700;padding:12px 28px;border:0;bo
 <li><b>Quái:</b> càng lên cấp càng nhiều, nhanh, đau. Quái tinh anh (to) trâu và rơi nhiều XP.</li>
 <li><b>Chí mạng 💥:</b> 15% cơ hội gấp đôi sát thương.</li>
 <li><b>Thua:</b> hết máu thì chơi lại từ Lv 1. Cố đạt cấp cao nhất!</li>
-<li><b>Online:</b> thấy người chơi khác trong cùng link, và có bảng xếp hạng chung (điểm lưu khi bạn gục ngã hoặc lên cấp).</li></ul><div style="display:flex;gap:8px;align-items:center"><span id="accname">👤 Khách</span><button class="ab" id="acc">Đăng nhập / Đăng ký</button><button class="ab" id="acclo" style="display:none">Đăng xuất</button></div><input id="nick" maxlength="14" placeholder="Nhập tên của bạn"><button id="start">Bắt đầu</button></div>
+<li><b>Online:</b> thấy người chơi khác trong cùng link, và có bảng xếp hạng chung (điểm lưu khi bạn gục ngã hoặc lên cấp).</li></ul><div style="display:flex;gap:8px;align-items:center"><span id="accname">👤 Khách</span><button class="ab" id="acc">Đăng nhập / Đăng ký</button><button class="ab" id="acclo" style="display:none">Đăng xuất</button></div><input id="nick" maxlength="24" placeholder="Nhập tên của bạn"><button id="start">Bắt đầu</button></div>
 <div id="adm"><b>🛡️ Admin</b><div>
 <button class="ab" id="a_heal">Hồi máu</button><button class="ab" id="a_lv">+1 cấp</button><button class="ab" id="a_god">Bất tử: tắt</button><button class="ab" id="a_clr">Xóa quái</button></div>
 <input id="a_txt" maxlength="120" placeholder="Thông báo cho mọi người"><button class="ab" id="a_send">Gửi thông báo</button>
@@ -71,7 +71,7 @@ button{font:inherit;font-size:18px;font-weight:700;padding:12px 28px;border:0;bo
 <div style="margin-top:6px"><button class="ab" id="a_rst">Xóa BXH</button><button class="ab" id="a_out">Đăng xuất admin</button></div></div>
 <div id="alog"><h2 style="margin:0">🛡️ Đăng nhập Admin</h2><input id="apw" type="password" placeholder="Mật khẩu admin"><button id="alogin">Đăng nhập</button><button id="acancel" style="background:#555;color:#fff">Hủy</button></div>
 <div id="auth"><h2 style="margin:0">👤 Tài khoản</h2>
-<input id="au_name" maxlength="14" placeholder="Tên đăng nhập" autocapitalize="none" autocomplete="username"><input id="au_pw" type="password" placeholder="Mật khẩu (từ 6 ký tự)" autocomplete="current-password">
+<input id="au_name" maxlength="24" placeholder="Tên đăng nhập" autocapitalize="none" autocomplete="username"><input id="au_pw" type="password" placeholder="Mật khẩu (từ 6 ký tự)" autocomplete="current-password">
 <div id="au_msg"></div><button id="au_in">Đăng nhập</button><button id="au_up" style="background:#4ade80">Đăng ký</button><button id="au_x" style="background:#555;color:#fff">Đóng</button></div>
 <div id="ann"></div>
 <div id="over"><h1>Bạn đã gục ngã 💀</h1><div id="score"></div><button id="again">Chơi lại</button></div>
@@ -257,7 +257,7 @@ const nickEl=$('nick');let nick='';
 try{nick=localStorage.getItem('nick')||''}catch(e){}
 nickEl.value=nick;
 const st=$('start').onclick;
-$('start').onclick=()=>{nick=(nickEl.value.trim()||'Hiệp sĩ'+Math.floor(Math.random()*900+100)).slice(0,14);try{localStorage.setItem('nick',nick)}catch(e){}st();sendPres()};
+$('start').onclick=()=>{nick=(nickEl.value.trim()||'Hiệp sĩ'+Math.floor(Math.random()*900+100)).slice(0,24);try{localStorage.setItem('nick',nick)}catch(e){}st();sendPres()};
 const myHue=Math.floor(Math.random()*360);
 const remotes=new Map();
 function mkRemote(hue){
@@ -285,7 +285,7 @@ function syncPeers(peers){
     seen.add(p.peer);
     let r=remotes.get(p.peer);if(!r){r=mkRemote(+p.presence.h||0);remotes.set(p.peer,r)}
     r.tx=p.presence.x;r.tz=p.presence.z;r.f=p.presence.f||0;if(p.presence.s!==r.ls){r.ls=p.presence.s;r.swT=.3}r.dead=p.presence.d;
-    r.tag.textContent='Lv'+(p.presence.lv|0)+' '+String(p.presence.n||'').slice(0,14);r.tag.style.color='hsl('+(+p.presence.h||0)+',80%,70%)';
+    r.tag.textContent='Lv'+(p.presence.lv|0)+' '+String(p.presence.n||'').slice(0,24);r.tag.style.color='hsl('+(+p.presence.h||0)+',80%,70%)';
     if(!r.init){r.g.position.set(r.tx,0,r.tz);r.init=true}
   }
   for(const [k,r] of remotes)if(!seen.has(k)){scene.remove(r.g);r.tag.remove();remotes.delete(k)}
@@ -323,7 +323,7 @@ function admRender(){
   const box=$('a_list');box.textContent='';const now=Date.now();let n=0;
   for(const k in docs){const v=docs[k];if(k===uid||now-(v.t||0)>15000)continue;n++;
     const row=document.createElement('div');row.className='pl';
-    const nm=document.createElement('span');nm.textContent='Lv'+(v.lv|0)+' '+String(v.n||'?').slice(0,14)+' ';nm.style.flex='1 0 100%';row.appendChild(nm);
+    const nm=document.createElement('span');nm.textContent='Lv'+(v.lv|0)+' '+String(v.n||'?').slice(0,24)+' ';nm.style.flex='1 0 100%';row.appendChild(nm);
     [['Kick 10p',6e5],['Ban 24h',864e5],['Vĩnh viễn',4102444800000-now]].forEach(([lb,ms])=>{
       const b=document.createElement('button');b.className='ab';b.textContent=lb;
       b.onclick=async()=>{try{await fdb.doc('g3d_bans/'+k).set({until:now+ms,by:uid,t:Date.now()});await fdb.doc('g3d_players/'+k).delete();showAnn('Đã xử lý '+(v.n||'người chơi'))}catch(e){alert('Lỗi: cần đăng nhập admin và đúng rules')}};
@@ -344,7 +344,7 @@ function getUser(){const a=firebase.auth();return new Promise(r=>{const un=a.onA
 const msg=t=>$('au_msg').textContent=t;
 function errText(e){const c=e&&e.code;return c==='auth/email-already-in-use'||c==='auth/credential-already-in-use'?'Tên này đã có người dùng':c==='auth/weak-password'?'Mật khẩu tối thiểu 6 ký tự':(c==='auth/invalid-credential'||c==='auth/wrong-password'||c==='auth/user-not-found')?'Sai tên hoặc mật khẩu':c==='auth/too-many-requests'?'Thử sai quá nhiều, đợi một lúc':c==='auth/operation-not-allowed'?'Chưa bật đăng nhập Email/Mật khẩu':'Lỗi: '+(c||'không rõ')}
 function authInput(){const n=$('au_name').value.trim().toLowerCase(),p=$('au_pw').value;
-  if(!/^[a-z0-9_]{3,14}$/.test(n)){msg('Tên 3-14 ký tự: chữ thường không dấu, số, _');return null}
+  if(!/^[a-z0-9_]{3,24}$/.test(n)){msg('Tên 3-24 ký tự: chữ thường không dấu, số, _');return null}
   if(!fdb){msg('Chưa kết nối Firebase');return null}
   if(isAdmin){msg('Hãy đăng xuất admin trước');return null}
   return{n,p}}
@@ -378,7 +378,7 @@ function initFirebase(){
         const box=$('lbl');box.textContent='';
         if(sn.empty){box.textContent='Chưa có ai. Hãy là người đầu tiên!';return}
         let i=0;sn.forEach(d=>{const v=d.data(),row=document.createElement('div'),x=document.createElement('span'),y=document.createElement('span');
-          x.textContent=(++i)+'. '+String(v.n||'?').slice(0,14);y.textContent='Lv'+v.lv+' · '+v.kills+'☠';row.append(x,y);box.appendChild(row)});
+          x.textContent=(++i)+'. '+String(v.n||'?').slice(0,24);y.textContent='Lv'+v.lv+' · '+v.kills+'☠';row.append(x,y);box.appendChild(row)});
       },()=>{$('lbl').textContent='Không tải được (thiếu Firestore rules?)'});
     }).catch(()=>{$('net').textContent='⚠️ Lỗi đăng nhập Firebase'});
   }catch(e){$('net').textContent='⚠️ Lỗi cấu hình Firebase'}
